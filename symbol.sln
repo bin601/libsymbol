@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pdbp", "pdbp.vcxproj", "{1BB1D934-2835-4006-8F77-CF7A6FE22D30}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "symbol", "symbol.vcxproj", "{1BB1D934-2835-4006-8F77-CF7A6FE22D30}"
 	ProjectSection(ProjectDependencies) = postProject
 		{FB065A2A-4C2C-4BFB-AED2-4B4F233FA40A} = {FB065A2A-4C2C-4BFB-AED2-4B4F233FA40A}
 	EndProjectSection

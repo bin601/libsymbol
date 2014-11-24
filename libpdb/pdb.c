@@ -362,11 +362,11 @@ static bool PdbParseHeader(PDB_FILE* pdb)
 				return false;
 
 			// Get the number of bytes in the root stream
-			if (!fread(&rootSize, 1, 4, pdb->file) != 4)
+			if (fread(&rootSize, 1, 4, pdb->file) != 4)
 				return false;
 
 			// Read the total number of streams in the file
-			if (!fread(&pdb->streamCount, 1, 4, pdb->file) != 4)
+			if (fread(&pdb->streamCount, 1, 4, pdb->file) != 4)
 				return false;
 
 			// Get the page of the root stream directory

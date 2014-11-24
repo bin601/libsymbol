@@ -294,8 +294,8 @@ static bool PrintStructureType(PDB_TYPES* types, PdbTypeEnumFunction typeFn, uin
 
 	if (nameLen)
 	{
-		structType.name = (uint8_t*)malloc(nameLen + 1);
-		strncpy(structType.name, pbuff, nameLen);
+		structType.name = (char*)malloc(nameLen + 1);
+		strncpy(structType.name, (char*)pbuff, nameLen);
 	}
 	else
 	{
@@ -427,11 +427,11 @@ static bool PrintFieldList(PDB_TYPES* types, PdbTypeEnumFunction typeFn, uint8_t
 
 bool PdbTypesPrint(PDB_TYPES* types, const char* name, PdbTypeEnumFunction typeFn)
 {
-	uint32_t typeHash;
-	uint32_t bucket;
+	// uint32_t typeHash;
+	// uint32_t bucket;
 
-	typeHash = CalcTypeHash(name);
-	bucket = typeHash % types->hash->buckets;
+	// typeHash = CalcTypeHash(name);
+	// bucket = typeHash % types->hash->buckets;
 
 	return false;
 }
@@ -499,10 +499,12 @@ bool PdbTypesEnumerate(PDB_TYPES* types, PdbTypeEnumFunction typeFn)
 			break;
 		case LEAF_TYPE_ENUM:
 			{
-				char* name = buff + 0xc;
-				char* tag = ((0x0e + strlen(name) + 1) < ((size_t)(typeLen - 2))) ? (name + strlen(name) + 1) : NULL; //(name + strlen(name) + 1) : NULL);
-				uint16_t count = *(uint16_t*)(buff + 2); 
-				uint32_t idx = *(uint32_t*)(buff + 8);
+				const char* const name
+					= (char*)(buff + 0xc);
+				const char* const tag
+					= ((0x0e + strlen(name) + 1) < ((size_t)(typeLen - 2))) ? (name + strlen(name) + 1) : NULL; //(name + strlen(name) + 1) : NULL);
+				const uint16_t count = *(uint16_t*)(buff + 2); 
+				const uint32_t idx = *(uint32_t*)(buff + 8);
 				printf("ENUM name=%s tag=%s %d members fieldlist idx=%.04x\n", name, tag, count, idx);
 			}
 			break;

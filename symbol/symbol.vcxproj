@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{1BB1D934-2835-4006-8F77-CF7A6FE22D30}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>pdbp</RootNamespace>
+    <RootNamespace>symbol</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

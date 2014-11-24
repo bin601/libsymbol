@@ -1,0 +1,3 @@
+[submodule "3rdparty/build"]
+	path = 3rdparty/build
+	url = https://github.com/rsalsamendi/build.git

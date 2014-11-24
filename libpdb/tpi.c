@@ -141,7 +141,7 @@ static uint32_t CalcTypeHash(const char* typeName)
 
 static PdbTypesHash* PdbTypesHashOpen(PdbTypes* types, uint32_t hashStreamId)
 {
-	PdbTypesHash* hash = (PdbTypesHash*)malloc(sizeof(PdbTypesHash));
+	PdbTypesHash* hash = (PdbTypesHash*)calloc(1, sizeof(PdbTypesHash));
 	uint16_t reserved;
 	hash->stream = PdbStreamOpen(PdbStreamGetPdb(types->stream), hashStreamId);
 
@@ -205,7 +205,7 @@ PdbTypes* PdbTypesOpen(PdbFile* pdb)
 	if (!PdbStreamRead(stream, (uint8_t*)&version, 4))
 		return NULL;
 
-	types = (PdbTypes*)malloc(sizeof(PdbTypes));
+	types = (PdbTypes*)calloc(1, sizeof(PdbTypes));
 	types->version = version;
 	types->stream = stream;
 	types->hash = NULL;
@@ -279,7 +279,7 @@ static bool PrintStructureType(PdbTypes* types, PdbTypeEnumFunction typeFn, uint
 
 	if (nameLen)
 	{
-		structType.name = (char*)malloc(nameLen + 1);
+		structType.name = (char*)calloc(1, nameLen + 1);
 		strncpy(structType.name, (char*)pbuff, nameLen);
 	}
 	else
@@ -455,7 +455,7 @@ bool PdbTypesEnumerate(PdbTypes* types, PdbTypeEnumFunction typeFn)
 		if (!PdbStreamRead(types->stream, (uint8_t*)&type, 2))
 			return false;
 
-		buff = (uint8_t*)malloc(typeLen);
+		buff = (uint8_t*)calloc(1, typeLen);
 
 		// Read the data associated with the type type
 		if (!PdbStreamRead(types->stream, buff, typeLen - 2))

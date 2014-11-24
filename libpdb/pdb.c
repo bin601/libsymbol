@@ -128,7 +128,7 @@ uint16_t PdbGetStreamCount(PdbFile* pdb)
 
 static bool PdbStreamOpenRoot(PdbFile* pdb, uint16_t rootStreamPageIndex, uint32_t size)
 {
-	PdbStream* root = (PdbStream*)malloc(sizeof(PdbStream));
+	PdbStream* root = (PdbStream*)calloc(1, sizeof(PdbStream));
 	size_t i;
 
 	pdb->root = root;
@@ -141,8 +141,7 @@ static bool PdbStreamOpenRoot(PdbFile* pdb, uint16_t rootStreamPageIndex, uint32
 	root->pageCount = GetPageCount(pdb, size);
 
 	// Allocate storage for the pdb's root page list
-	root->pages = (uint32_t*)malloc(pdb->pageCount * sizeof(uint32_t));
-	memset(root->pages, 0, pdb->pageCount * sizeof(uint32_t));
+	root->pages = (uint32_t*)calloc(pdb->pageCount, sizeof(uint32_t));
 
 	// Follow yet another layer of indirection (don't be fooled by Sven's docs,
 	// the root page index in the header points to the list of indices 
@@ -290,7 +289,7 @@ PdbStream* PdbStreamOpen(PdbFile* pdb, uint16_t streamId)
 	PdbStream* stream;
 	uint32_t i;
 
-	stream = (PdbStream*)malloc(sizeof(PdbStream));
+	stream = (PdbStream*)calloc(1, sizeof(PdbStream));
 	stream->pdb = pdb;
 	stream->id = streamId;
 
@@ -303,7 +302,7 @@ PdbStream* PdbStreamOpen(PdbFile* pdb, uint16_t streamId)
 
 	// Calculate the number of pages needed and alloc storage for the page indices
 	stream->pageCount = GetPageCount(pdb, stream->size);
-	stream->pages = (uint32_t*)malloc(sizeof(uint32_t) * stream->pageCount);
+	stream->pages = (uint32_t*)calloc(stream->pageCount, sizeof(uint32_t));
 
 	// Read in the page indices that make up the stream
 	for (i = 0; i < stream->pageCount; i++)
@@ -451,7 +450,7 @@ PdbFile* PdbOpen(const char* name)
 		return NULL;
 	}
 	
-	pdb = (PdbFile*)malloc(sizeof(PdbFile));
+	pdb = (PdbFile*)calloc(1, sizeof(PdbFile));
 
 	// Initialize
 	pdb->name = strdup(name);

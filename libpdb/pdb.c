@@ -48,7 +48,7 @@ const char PDB_SIGNATURE_V7[] = "Microsoft C/C++ MSF 7.00\r\n";
 #endif /* WIN32 */
 
 
-struct PDB_FILE
+struct PdbFile
 {
 	char* name; // file name
 	FILE* file;
@@ -58,14 +58,14 @@ struct PDB_FILE
 	uint32_t pageCount; // total file bytes / page bytes
 	uint32_t flagPage;
 
-	PDB_STREAM* root;
-	PDB_STREAM* lastAccessed;
+	PdbStream* root;
+	PdbStream* lastAccessed;
 };
 
 
-struct PDB_STREAM
+struct PdbStream
 {
-	PDB_FILE* pdb;
+	PdbFile* pdb;
 	uint16_t id; // The stream index
 	uint32_t* pages; // The indices of the pages comprising the stream
 	uint64_t currentOffset; // The current offset
@@ -74,7 +74,7 @@ struct PDB_STREAM
 };
 
 
-static bool PdbCheckFileSize(PDB_FILE* pdb)
+static bool PdbCheckFileSize(PdbFile* pdb)
 {
 	off_t currentOffset;
 	off_t fileSize;
@@ -109,7 +109,7 @@ static bool PdbCheckFileSize(PDB_FILE* pdb)
 }
 
 
-static uint32_t GetPageCount(PDB_FILE* pdb, uint32_t bytes)
+static uint32_t GetPageCount(PdbFile* pdb, uint32_t bytes)
 {
 	// Watch out for div0
 	if (pdb->pageSize == 0)
@@ -120,15 +120,15 @@ static uint32_t GetPageCount(PDB_FILE* pdb, uint32_t bytes)
 }
 
 
-uint16_t PdbGetStreamCount(PDB_FILE* pdb)
+uint16_t PdbGetStreamCount(PdbFile* pdb)
 {
 	return pdb->streamCount;
 }
 
 
-static bool PdbStreamOpenRoot(PDB_FILE* pdb, uint16_t rootStreamPageIndex, uint32_t size)
+static bool PdbStreamOpenRoot(PdbFile* pdb, uint16_t rootStreamPageIndex, uint32_t size)
 {
-	PDB_STREAM* root = (PDB_STREAM*)malloc(sizeof(PDB_STREAM));
+	PdbStream* root = (PdbStream*)malloc(sizeof(PdbStream));
 	size_t i;
 
 	pdb->root = root;
@@ -182,7 +182,7 @@ static bool PdbStreamOpenRoot(PDB_FILE* pdb, uint16_t rootStreamPageIndex, uint3
 }
 
 
-static bool PdbSeekToStreamSize(PDB_FILE* pdb, uint16_t streamId)
+static bool PdbSeekToStreamSize(PdbFile* pdb, uint16_t streamId)
 {
 	uint32_t streamSizesOffset;
 
@@ -197,7 +197,7 @@ static bool PdbSeekToStreamSize(PDB_FILE* pdb, uint16_t streamId)
 }
 
 
-static bool PdbSeekToStreamPageDirectory(PDB_FILE* pdb, uint16_t streamId, uint32_t* streamSize)
+static bool PdbSeekToStreamPageDirectory(PdbFile* pdb, uint16_t streamId, uint32_t* streamSize)
 {
 	uint32_t directoriesBase; // The beginning of the directories in the root stream
 	uint32_t streamDirectoryOffset; // The offset in the page directories for the stream of interest
@@ -244,7 +244,7 @@ static bool PdbSeekToStreamPageDirectory(PDB_FILE* pdb, uint16_t streamId, uint3
 }
 
 
-bool PdbStreamSeek(PDB_STREAM* stream, uint64_t offset)
+bool PdbStreamSeek(PdbStream* stream, uint64_t offset)
 {
 	if (stream->pageCount)
 	{
@@ -285,12 +285,12 @@ bool PdbStreamSeek(PDB_STREAM* stream, uint64_t offset)
 }
 
 
-PDB_STREAM* PdbStreamOpen(PDB_FILE* pdb, uint16_t streamId)
+PdbStream* PdbStreamOpen(PdbFile* pdb, uint16_t streamId)
 {
-	PDB_STREAM* stream;
+	PdbStream* stream;
 	uint32_t i;
 
-	stream = (PDB_STREAM*)malloc(sizeof(PDB_STREAM));
+	stream = (PdbStream*)malloc(sizeof(PdbStream));
 	stream->pdb = pdb;
 	stream->id = streamId;
 
@@ -323,14 +323,14 @@ PDB_STREAM* PdbStreamOpen(PDB_FILE* pdb, uint16_t streamId)
 }
 
 
-void PdbStreamClose(PDB_STREAM* stream)
+void PdbStreamClose(PdbStream* stream)
 {
 	free(stream->pages);
 	free(stream);
 }
 
 
-static bool PdbParseHeader(PDB_FILE* pdb)
+static bool PdbParseHeader(PdbFile* pdb)
 {
 	char buff[sizeof(PDB_SIGNATURE_V2) + 1];
 
@@ -437,13 +437,13 @@ static bool PdbParseHeader(PDB_FILE* pdb)
 }
 
 
-PDB_FILE* PdbOpen(const char* name)
+PdbFile* PdbOpen(const char* name)
 {
 	// TODO:  Ensure the file is not writable by other processes while
 	// we have it open to avoid potential memory corruption due to having some
 	// parts of the file cached and others not (and no refresh mechanism)
 	FILE* file = fopen(name, "rb");
-	PDB_FILE* pdb;
+	PdbFile* pdb;
 
 	if (!file)
 	{
@@ -451,7 +451,7 @@ PDB_FILE* PdbOpen(const char* name)
 		return NULL;
 	}
 	
-	pdb = (PDB_FILE*)malloc(sizeof(PDB_FILE));
+	pdb = (PdbFile*)malloc(sizeof(PdbFile));
 
 	// Initialize
 	pdb->name = strdup(name);
@@ -477,7 +477,7 @@ PDB_FILE* PdbOpen(const char* name)
 }
 
 
-void PdbClose(PDB_FILE* pdb)
+void PdbClose(PdbFile* pdb)
 {
 	fclose(pdb->file);
 	free(pdb->name);
@@ -485,19 +485,19 @@ void PdbClose(PDB_FILE* pdb)
 }
 
 
-PDB_FILE* PdbStreamGetPdb(PDB_STREAM* stream)
+PdbFile* PdbStreamGetPdb(PdbStream* stream)
 {
 	return stream->pdb;
 }
 
 
-uint32_t PdbStreamGetSize(PDB_STREAM* stream)
+uint32_t PdbStreamGetSize(PdbStream* stream)
 {
 	return stream->size;
 }
 
 
-bool PdbStreamRead(PDB_STREAM* stream, uint8_t* buff, uint64_t bytes)
+bool PdbStreamRead(PdbStream* stream, uint8_t* buff, uint64_t bytes)
 {
 	uint8_t* pbuff = buff;
 	uint64_t bytesRemaining = bytes;

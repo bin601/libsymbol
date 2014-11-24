@@ -30,6 +30,7 @@ bool g_dumpStream = false; // Do we want to dump a stream?
 uint16_t g_dumpStreamId = (uint16_t)-1; // The stream id to dump if dump is true.
 bool g_dumpType = false; // Do we want to dump a type?
 bool g_dumpAllTypes = false;
+bool g_getSigFromPe = false;
 char* g_type = NULL;
 
 
@@ -40,10 +41,12 @@ char* g_type = NULL;
 
 static void PrintHelp()
 {
-	fprintf(stderr, "Usage: pdbp [options] [pdb file]\n");
+	fprintf(stderr, "Usage: symbol [options] [file]\n");
 	fprintf(stderr, "Options:\n\n");
 	fprintf(stderr, "\t-d [stream_num] or --dump-stream [stream_num]\t\tDump the data in the stream to stdout.\n");
 	fprintf(stderr, "\t dt [type name} or --dump-type [type name]\t\tDump type information to stdout.\n");
+
+	fprintf(stderr, "\t --dump-pe-sig\t\tDump pdb signature information from a pe file to stdout.\n");
 }
 
 
@@ -87,7 +90,7 @@ static bool ParseCommandLine(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	PDB_FILE* pdb;
+	PdbFile* pdb;
 
 	if (!ParseCommandLine(argc, argv))
 	{
@@ -111,7 +114,7 @@ int main(int argc, char** argv)
 		uint8_t buff[512];
 		uint32_t chunkSize;
 		uint32_t bytesRemaining;
-		PDB_STREAM* stream = PdbStreamOpen(pdb, g_dumpStreamId);
+		PdbStream* stream = PdbStreamOpen(pdb, g_dumpStreamId);
 
 		if (!stream)
 		{
@@ -152,7 +155,7 @@ int main(int argc, char** argv)
 	if (g_dumpType)
 	{
 		// Attempt to initialize the types subsystem
-		PDB_TYPES* types = PdbTypesOpen(pdb);
+		PdbTypes* types = PdbTypesOpen(pdb);
 
 		if (!types)
 		{

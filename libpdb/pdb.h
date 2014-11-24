@@ -59,11 +59,11 @@ http://ccimetadata.codeplex.com/ Microsoft Common Compiler Infrastructure Metada
 #include <stdlib.h>
 
 
-typedef struct PDB_FILE PDB_FILE;
-typedef struct PDB_STREAM PDB_STREAM;
-typedef enum PDB_STREAMS PDB_STREAMS;
+typedef struct PdbFile PdbFile;
+typedef struct PdbStream PdbStream;
+typedef enum PdbStreams PdbStreams;
 
-enum PDB_STREAMS
+enum PdbStreams
 {
 	PDB_STREAM_ROOT = 0,
 	PDB_STREAM_PROGRAM_INFO = 1,
@@ -77,17 +77,17 @@ extern "C"
 {
 #endif /* __cplusplus */
 
-	PDBAPI PDB_FILE* PdbOpen(const char* name);
-	PDBAPI void PdbClose(PDB_FILE* pdb);
-	PDBAPI uint16_t PdbGetStreamCount(PDB_FILE* pdb);
+	PDBAPI PdbFile* PdbOpen(const char* name);
+	PDBAPI void PdbClose(PdbFile* pdb);
+	PDBAPI uint16_t PdbGetStreamCount(PdbFile* pdb);
 
-	PDBAPI PDB_STREAM* PdbStreamOpen(PDB_FILE* pdb, uint16_t streamId);
-	PDBAPI void PdbStreamClose(PDB_STREAM* stream);
+	PDBAPI PdbStream* PdbStreamOpen(PdbFile* pdb, uint16_t streamId);
+	PDBAPI void PdbStreamClose(PdbStream* stream);
 
-	PDBAPI PDB_FILE* PdbStreamGetPdb(PDB_STREAM* stream);
-	PDBAPI uint32_t PdbStreamGetSize(PDB_STREAM* stream);
-	PDBAPI bool PdbStreamRead(PDB_STREAM* stream, uint8_t* buff, uint64_t bytes);
-	PDBAPI bool PdbStreamSeek(PDB_STREAM* stream, uint64_t offset);
+	PDBAPI PdbFile* PdbStreamGetPdb(PdbStream* stream);
+	PDBAPI uint32_t PdbStreamGetSize(PdbStream* stream);
+	PDBAPI bool PdbStreamRead(PdbStream* stream, uint8_t* buff, uint64_t bytes);
+	PDBAPI bool PdbStreamSeek(PdbStream* stream, uint64_t offset);
 
 #ifdef __cplusplus
 }

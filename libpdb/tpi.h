@@ -24,10 +24,10 @@ THE SOFTWARE.
 #define __TPI_H__
 
 
-typedef struct PDB_TYPES PDB_TYPES;
-typedef enum PDB_LEAF_TYPES PDB_LEAF_TYPES;
+typedef struct PdbTypes PdbTypes;
+typedef enum PdbLeafTypes PdbLeafTypes;
 
-enum PDB_LEAF_TYPES
+enum PdbLeafTypes
 {
 	LEAF_TYPE_FAKE = 0xFFFFFFFF,
 	LEAF_TYPE_MODIFIER16 = 0x00000001,
@@ -197,12 +197,12 @@ extern "C"
 {
 #endif /* __cplusplus */
 
-	PDBAPI PDB_TYPES* PdbTypesOpen(PDB_FILE* pdb);
-	PDBAPI void PdbTypesClose(PDB_TYPES* types);
+	PDBAPI PdbTypes* PdbTypesOpen(PdbFile* pdb);
+	PDBAPI void PdbTypesClose(PdbTypes* types);
 
-	PDBAPI uint32_t PdbTypesGetCount(PDB_TYPES* types);
-	PDBAPI bool PdbTypesPrint(PDB_TYPES* types, const char* name, PdbTypeEnumFunction typeFn);
-	PDBAPI bool PdbTypesEnumerate(PDB_TYPES* types, PdbTypeEnumFunction typeFn);
+	PDBAPI uint32_t PdbTypesGetCount(PdbTypes* types);
+	PDBAPI bool PdbTypesPrint(PdbTypes* types, const char* name, PdbTypeEnumFunction typeFn);
+	PDBAPI bool PdbTypesEnumerate(PdbTypes* types, PdbTypeEnumFunction typeFn);
 
 
 #ifdef __cplusplus

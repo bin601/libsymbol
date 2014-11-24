@@ -34,38 +34,39 @@ THE SOFTWARE.
 #define PDB_VERSION_VC50                19960307
 #define PDB_VERSION_VC60                19970604
 #define PDB_VERSION_VC70                19990604
+#define PDB_VERSION_X			19990903
 #define PDB_VERSION_VC71                20000404
 #define PDB_VERSION_VC8                 20040203
 
 
-typedef struct PDB_TYPES_STREAM_HASH_ENTRY
+typedef struct PdbTypesHashEntry
 {
 	uint32_t offset;
 	uint32_t size;
-} PDB_TYPES_HASH_ENTRY;
+} PdbTypesHashEntry;
 
-typedef struct PDB_TYPES_HASH
+typedef struct PdbTypesHash
 {
-	PDB_STREAM* stream;
+	PdbStream* stream;
 	uint32_t keySize;
 	uint32_t buckets;
-	PDB_TYPES_HASH_ENTRY values;
-	PDB_TYPES_HASH_ENTRY types;
-	PDB_TYPES_HASH_ENTRY adjustments;
-} PDB_TYPES_HASH;
+	PdbTypesHashEntry values;
+	PdbTypesHashEntry types;
+	PdbTypesHashEntry adjustments;
+} PdbTypesHash;
 
-typedef struct PDB_TYPES
+typedef struct PdbTypes
 {
-	PDB_STREAM* stream;
+	PdbStream* stream;
 	uint32_t version;
 	uint32_t headerSize;
 	uint32_t minId;
 	uint32_t maxId;
 	uint32_t len; // The amount of data after the header
-	PDB_TYPES_HASH* hash;
-} PDB_TYPES;
+	PdbTypesHash* hash;
+} PdbTypes;
 
-typedef struct PDB_TYPE_PROPERTIES
+typedef struct PdbTypeProperties
 {
 	uint16_t packed : 1;
 	uint16_t ctor : 1;
@@ -77,9 +78,9 @@ typedef struct PDB_TYPE_PROPERTIES
 	uint16_t fwdref : 1;
 	uint16_t scoped : 1;
 	uint16_t reserved : 1;
-} PDB_TYPE_PROPERTIES;
+} PdbTypeProperties;
 
-typedef struct PDB_TYPE_FIELD_ATTRIBUTES
+typedef struct PdbTypeFieldAttributes
 {
 	uint16_t access : 2;
 	uint16_t mprop : 3;
@@ -88,14 +89,14 @@ typedef struct PDB_TYPE_FIELD_ATTRIBUTES
 	uint16_t noconstruct : 1;
 	uint16_t compgenx : 1;
 	uint16_t reserved : 7;
-} PDB_TYPE_FIELD_ATTRIBUTES;
+} PdbTypeFieldAttributes;
 
-typedef struct PDB_TYPE
+typedef struct PdbType
 {
-	PDB_LEAF_TYPES type;
-} PDB_TYPE;
+	PdbLeafTypes type;
+} PdbType;
 
-typedef struct PDB_LEAF_TYPE_STRUCTURE
+typedef struct PdbLeafTypeStructure
 {
 	uint16_t lf;
 	uint16_t count;
@@ -104,7 +105,7 @@ typedef struct PDB_LEAF_TYPE_STRUCTURE
 	uint32_t derived;
 	uint32_t vshape;
 	char* name;
-} PDB_LEAF_TYPE_STRUCTURE;
+} PdbLeafTypeStructure;
 
 
 // My interpretation of the algorithm in Ch 7.5 Hash table and sort table descriptions
@@ -138,9 +139,9 @@ static uint32_t CalcTypeHash(const char* typeName)
 }
 
 
-static PDB_TYPES_HASH* PdbTypesHashOpen(PDB_TYPES* types, uint32_t hashStreamId)
+static PdbTypesHash* PdbTypesHashOpen(PdbTypes* types, uint32_t hashStreamId)
 {
-	PDB_TYPES_HASH* hash = (PDB_TYPES_HASH*)malloc(sizeof(PDB_TYPES_HASH));
+	PdbTypesHash* hash = (PdbTypesHash*)malloc(sizeof(PdbTypesHash));
 	uint16_t reserved;
 	hash->stream = PdbStreamOpen(PdbStreamGetPdb(types->stream), hashStreamId);
 
@@ -184,43 +185,27 @@ static PDB_TYPES_HASH* PdbTypesHashOpen(PDB_TYPES* types, uint32_t hashStreamId)
 }
 
 
-static void PdbTypesHashClose(PDB_TYPES_HASH* hash)
+static void PdbTypesHashClose(PdbTypesHash* hash)
 {
 	PdbStreamClose(hash->stream);
 	free(hash);
 }
 
 
-PDB_TYPES* PdbTypesOpen(PDB_FILE* pdb)
+PdbTypes* PdbTypesOpen(PdbFile* pdb)
 {
-	PDB_TYPES* types;
+	PdbTypes* types;
 	uint16_t hashStreamId;
 	uint32_t version;
 
 	// Get the types stream
-	PDB_STREAM* stream = PdbStreamOpen(pdb, PDB_STREAM_TYPE_INFO);
+	PdbStream* stream = PdbStreamOpen(pdb, PDB_STREAM_TYPE_INFO);
 
 	// Read version
 	if (!PdbStreamRead(stream, (uint8_t*)&version, 4))
 		return NULL;
 
-	// Check for a supported version
-	if ((version != PDB_VERSION_VC2)
-		&& (version != PDB_VERSION_VC2)
-		&& (version != PDB_VERSION_VC4)
-		&& (version != PDB_VERSION_VC41)
-		&& (version != PDB_VERSION_VC50)
-		&& (version != PDB_VERSION_VC60)
-		&& (version != PDB_VERSION_VC70)
-		&& (version != PDB_VERSION_VC71)
-		&& (version != PDB_VERSION_VC8))
-	{
-		// Can't support this version
-		PdbStreamClose(stream);
-		return NULL;
-	}
-
-	types = (PDB_TYPES*)malloc(sizeof(PDB_TYPES));
+	types = (PdbTypes*)malloc(sizeof(PdbTypes));
 	types->version = version;
 	types->stream = stream;
 	types->hash = NULL;
@@ -264,9 +249,9 @@ FAIL:
 }
 
 
-static bool PrintStructureType(PDB_TYPES* types, PdbTypeEnumFunction typeFn, uint8_t* buff, size_t len)
+static bool PrintStructureType(PdbTypes* types, PdbTypeEnumFunction typeFn, uint8_t* buff, size_t len)
 {
-	PDB_LEAF_TYPE_STRUCTURE structType;
+	PdbLeafTypeStructure structType;
 	size_t nameLen;
 	uint8_t* pbuff = buff;
 
@@ -313,7 +298,7 @@ static bool PrintStructureType(PDB_TYPES* types, PdbTypeEnumFunction typeFn, uin
 }
 
 
-static bool PrintFieldList(PDB_TYPES* types, PdbTypeEnumFunction typeFn, uint8_t* buff, size_t len)
+static bool PrintFieldList(PdbTypes* types, PdbTypeEnumFunction typeFn, uint8_t* buff, size_t len)
 {
 	uint8_t* pbuff = buff;
 	size_t remainingLen = len;
@@ -425,7 +410,7 @@ static bool PrintFieldList(PDB_TYPES* types, PdbTypeEnumFunction typeFn, uint8_t
 }
 
 
-bool PdbTypesPrint(PDB_TYPES* types, const char* name, PdbTypeEnumFunction typeFn)
+bool PdbTypesPrint(PdbTypes* types, const char* name, PdbTypeEnumFunction typeFn)
 {
 	// uint32_t typeHash;
 	// uint32_t bucket;
@@ -437,7 +422,7 @@ bool PdbTypesPrint(PDB_TYPES* types, const char* name, PdbTypeEnumFunction typeF
 }
 
 
-bool PdbTypesEnumerate(PDB_TYPES* types, PdbTypeEnumFunction typeFn)
+bool PdbTypesEnumerate(PdbTypes* types, PdbTypeEnumFunction typeFn)
 {
 	uint16_t type;
 	uint32_t len = types->len;
@@ -549,13 +534,13 @@ bool PdbTypesEnumerate(PDB_TYPES* types, PdbTypeEnumFunction typeFn)
 }
 
 
-uint32_t PdbTypesGetCount(PDB_TYPES* types)
+uint32_t PdbTypesGetCount(PdbTypes* types)
 {
 	return 0;
 }
 
 
-void PdbTypesClose(PDB_TYPES* types)
+void PdbTypesClose(PdbTypes* types)
 {
 	if (types->hash)
 		PdbTypesHashClose(types->hash);

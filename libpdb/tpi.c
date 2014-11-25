@@ -128,6 +128,7 @@ static uint32_t CalcTypeHash(const char* typeName)
 	}
 
 	len /= 4;
+	sum = 0;
 	for (i = 0; i < len; i++)
 	{
 		sum ^= (pName[i] & 0xdfdfdfdf); // toupper
@@ -153,33 +154,60 @@ static PdbTypesHash* PdbTypesHashOpen(PdbTypes* types, uint32_t hashStreamId)
 
 	// Move past the reserved word (filler to preserved alignment)
 	if (!PdbStreamRead(types->stream, (uint8_t*)&reserved, 2))
+	{
+		free(hash);
 		return false;
+	}
 
 	// Get the size of the key
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->keySize, 4))
+	{
+		free(hash);
 		return false;
+	}
 
 	// Get the number of buckets in the hash
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->buckets, 4))
+	{
+		free(hash);
 		return false;
+	}
 
 	// Read the hash values
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->values.offset, 4))
+	{
+		free(hash);
 		return false;
+	}
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->values.size, 4))
+	{
+		free(hash);
 		return false;
+	}
 
 	// Read the hash indices
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->types.offset, 4))
+	{
+		free(hash);
 		return false;
+	}
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->types.size, 4))
+	{
+		free(hash);
 		return false;
+	}
 
 	// Read the hash adjustments
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->adjustments.offset, 4))
+	{
+		free(hash);
 		return false;
+	}
 	if (!PdbStreamRead(types->stream, (uint8_t*)&hash->adjustments.size, 4))
+	{
+		free(hash);
 		return false;
+	}
 	
 	return hash;
 }
@@ -287,12 +315,14 @@ static bool PrintStructureType(PdbTypes* types, PdbTypeEnumFunction typeFn, uint
 		structType.name = NULL;
 	}
 
-	pbuff += strlen(structType.name);
+	// pbuff += strlen(structType.name);
 
 	printf("struct name=%s count=%x prop=%x, field=%x, derived=%x, vshape=%x\n",
 		structType.name, (uint32_t)structType.count,
 		(uint32_t)structType.prop, structType.field, structType.derived,
 		structType.vshape);
+
+	free(structType.name);
 
 	return true;
 }

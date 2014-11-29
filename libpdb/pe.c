@@ -1,8 +1,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+
+#ifdef WIN32
+#include <Windows.h>
+#else /* Linux */
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif /* WIN32 */
 
 #include "pe.h"
 
@@ -117,62 +128,105 @@ typedef struct IMAGE_NT_HEADERS
 
 struct PeFile
 {
-	FILE* file;
+#ifdef WIN32
+	HANDLE hFileMapping;
+#else
+	int fd;
+#endif /* WIN32 */
+	const void* data;
 	const char* name;
+	size_t len;
 };
 
 PeFile* PeOpen(const char* const filename)
 {
-	FILE* const file = fopen(filename, "rb");
-	IMAGE_DOS_HEADER dosHeader;
-	IMAGE_NT_HEADERS ntHeaders;
+	const IMAGE_DOS_HEADER* dosHeader;
+	const IMAGE_NT_HEADERS* ntHeaders;
 	PeFile* pe;
-
-	if (!file)
-	{
-		fprintf(stderr, "Failed to open pdb file.  OS reports: %s\n", strerror(errno));
-		return NULL;
-	}
-
-	if (fread(&dosHeader, sizeof(IMAGE_DOS_HEADER), 1, file) != 1)
-	{
-		fprintf(stderr, "Not enough data to be a PE file.\n");
-		fclose(file);
-		return NULL;
-	}
-
-	if (dosHeader.e_magic != 0x4d5a)
-	{
-		fprintf(stderr, "Not a PE file. MS DOS header magic doesn't match.\n");
-		fclose(file);
-		return NULL;
-	}
-
-	if (fseeko(file, dosHeader.e_lfanew, SEEK_SET))
-	{
-		fprintf(stderr, "Could not seek to PE header.\n");
-		fclose(file);
-		return NULL;
-	}
-
-	if (fread(&ntHeaders, sizeof(IMAGE_NT_HEADERS), 1, file) != 1)
-	{
-		fprintf(stderr, "Not enough data for PE header.\n");
-		fclose(file);
-		return NULL;
-	}
-
-	if (ntHeaders.Signature != 0x50450000)
-	{
-		fprintf(stderr, "PE signature does not match.\n");
-		fclose(file);
-		return NULL;
-	}
-
+#ifdef WIN32
+	HANDLE hFileMapping;
+	LARGE_INTEGER len;
+#else
+	int fd;
+	struct stat statData;
+#endif /* WIN32 */
 
 	pe = (PeFile*)calloc(1, sizeof(PeFile));
-	pe->file = file;
 	pe->name = strdup(filename);
+
+#ifdef WIN32
+	hFileMapping = OpenFileMapping(FILE_MAP_READ, FALSE, filename);
+	if (!hFileMapping)
+	{
+		fprintf(stderr, "Failed to open pe file. OS reports: %s\n",
+			strerror(errno));
+		return NULL;
+	}
+	pe->hFileMapping = hFileMapping;
+
+	if (!GetFileSizeEx(filename, &len))
+	{
+		fprintf(stderr, "Failed to get pe file size. OS reports: %s\n", strerror(errno));
+		return NULL;
+	}
+	pe->len = (size_t)len;
+
+	pe->data = MapViewOfFile(hFileMapping, FILE_MAP_READ, 0, 0, pe->len);
+#else /* Linux */
+	fd = open(filename, O_RDONLY);
+	if (fd == -1)
+	{
+
+		fprintf(stderr, "Failed to open pe file. OS reports: %s\n",
+			strerror(errno));
+		return NULL;
+	}
+
+	if (fstat(fd, &statData) == -1)
+	{
+		fprintf(stderr, "Failed to stat pe file. OS reports: %s\n",
+			strerror(errno));
+	}
+	pe->len = (size_t)statData.st_size;
+
+	pe->data = mmap(NULL, pe->len, PROT_READ, MAP_PRIVATE, fd, 0);
+#endif /* WIN32 */
+	if (!pe->data)
+	{
+		fprintf(stderr, "Could not map the pe file.\n");
+		PeClose(pe);
+		return NULL;
+	}
+
+	if (pe->len < (sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS)))
+	{
+		fprintf(stderr, "Not a valid pe file. Not enough data.\n");
+		PeClose(pe);
+		return NULL;
+	}
+
+	dosHeader = (IMAGE_DOS_HEADER*)pe->data;
+	if (dosHeader->e_magic != 0x4d5a)
+	{
+		fprintf(stderr, "Not a PE file. MS DOS header magic doesn't match.\n");
+		PeClose(pe);
+		return NULL;
+	}
+
+	ntHeaders = (void*)(pe->data + dosHeader->e_lfanew);
+	if (((void*)ntHeaders) > (pe->data + pe->len))
+	{
+		fprintf(stderr, "Could not seek to PE header.\n");
+		PeClose(pe);
+		return NULL;
+	}
+
+	if (ntHeaders->Signature != 0x50450000)
+	{
+		fprintf(stderr, "PE signature does not match.\n");
+		PeClose(pe);
+		return NULL;
+	}
 
 	return pe;
 }
@@ -180,8 +234,17 @@ PeFile* PeOpen(const char* const filename)
 
 void PeClose(PeFile* const peFile)
 {
-	if (peFile->file)
-		fclose(peFile->file);
+#ifdef WIN32
+	if (peFile->data)
+		UnmapViewOfFile(peFile->data);
+	if (peFile->hFileMapping)
+		CloseHandle(peFile->file);
+#else /* Linux */
+	if (peFile->data)
+		munmap((void*)peFile->data, (off_t)peFile->len);
+	if (peFile->fd != -1)
+		close(peFile->fd);
+#endif /* WIN32 */
 	if (peFile->name)
 		free((void*)peFile->name);
 	free(peFile);

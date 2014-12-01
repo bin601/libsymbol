@@ -84,6 +84,26 @@ typedef struct IMAGE_DATA_DIRECTORY
     uint32_t Size;
 } IMAGE_DATA_DIRECTORY;
 
+typedef enum IMAGE_DIRECTORY_ENTRY
+{
+	IMAGE_DIRECTORY_ENTRY_EXPORT = 0,
+	IMAGE_DIRECTORY_ENTRY_IMPORT = 1,
+	IMAGE_DIRECTORY_ENTRY_RESOURCE = 2,
+	IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3,
+	IMAGE_DIRECTORY_ENTRY_CERTIFICATE = 4,
+	IMAGE_DIRECTORY_ENTRY_RELOCATION = 5,
+	IMAGE_DIRECTORY_ENTRY_DEBUG = 6,
+	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE = 7,
+	IMAGE_DIRECTORY_ENTRY_GLOBAL = 8,
+	IMAGE_DIRECTORY_ENTRY_TLS = 9,
+	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10,
+	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT = 11,
+	IMAGE_DIRECTORY_ENTRY_IAT = 12,
+	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT_DESCRIPTOR = 13,
+	IMAGE_DIRECTORY_ENTRY_CLR_HEADER = 14,
+	IMAGE_DIRECTORY_ENTRY_RESERVED = 15,
+} IMAGE_DIRECTORY_ENTRY;
+
 typedef struct IMAGE_OPTIONAL_HEADER
 {
     uint16_t Magic; // not-so-magical number
@@ -125,6 +145,30 @@ typedef struct IMAGE_NT_HEADERS
   IMAGE_FILE_HEADER FileHeader;
   IMAGE_OPTIONAL_HEADER OptionalHeader;
 } IMAGE_NT_HEADERS;
+
+typedef enum IMAGE_DEBUG_TYPE
+{
+	IMAGE_DEBUG_TYPE_UNKNOWN = 0,
+	IMAGE_DEBUG_TYPE_COFF = 1,
+	IMAGE_DEBUG_TYPE_CODEVIEW = 2,
+	IMAGE_DEBUG_TYPE_FPO = 3,
+	IMAGE_DEBUG_TYPE_MISC = 4,
+	IMAGE_DEBUG_TYPE_EXCEPTION = 5,
+	IMAGE_DEBUG_TYPE_FIXUP = 6,
+	IMAGE_DEBUG_TYPE_BORLAND = 9
+} IMAGE_DEBUG_TYPE;
+
+typedef struct IMAGE_DEBUG_DIRECTORY
+{
+  uint32_t Characteristics;
+  uint32_t TimeDateStamp;
+  uint16_t MajorVersion;
+  uint16_t MinorVersion;
+  uint32_t Type;
+  uint32_t SizeOfData;
+  uint32_t AddressOfRawData;
+  uint32_t PointerToRawData;
+} IMAGE_DEBUG_DIRECTORY;
 
 struct PeFile
 {
@@ -232,22 +276,155 @@ PeFile* PeOpen(const char* const filename)
 }
 
 
-void PeClose(PeFile* const peFile)
+void PeClose(PeFile* const pe)
 {
 #ifdef WIN32
-	if (peFile->data)
-		UnmapViewOfFile(peFile->data);
-	if (peFile->hFileMapping)
-		CloseHandle(peFile->file);
+	if (pe->data)
+		UnmapViewOfFile(pe->data);
+	if (pe->hFileMapping)
+		CloseHandle(pe->file);
 #else /* Linux */
-	if (peFile->data)
-		munmap((void*)peFile->data, (off_t)peFile->len);
-	if (peFile->fd != -1)
-		close(peFile->fd);
+	if (pe->data)
+		munmap((void*)pe->data, pe->len);
+	if (pe->fd != -1)
+		close(pe->fd);
 #endif /* WIN32 */
-	if (peFile->name)
-		free((void*)peFile->name);
-	free(peFile);
+	if (pe->name)
+		free((void*)pe->name);
+	free(pe);
+}
+
+
+static __inline bool CheckPointer(const PeFile* const pe,
+	const void* const data, size_t len)
+{
+	if (data < pe->data)
+		return false;
+	if (data >= (pe->data + pe->len))
+		return false;
+	if ((data + len) >= (pe->data + pe->len))
+		return false;
+	return true;
+}
+
+
+static __inline bool CheckStringPointer(const PeFile* const pe,
+	const char* const str)
+{
+	const char* c = str;
+
+	// See if the first byte is even in the image.
+	if (!CheckPointer(pe, str, 1))
+		return false;
+
+	// Now scan for a NULL byte or the end of the image, whichever
+	// comes first.
+	while ((*c) != '\0')
+	{
+		c++;
+		if (c >= (char*)(pe->data + pe->len))
+			return false;
+	}
+
+	return true;
+}
+
+
+bool PeGetPdbData(PeFile* const pe, char* const filename,
+	size_t filenameLen, Guid* const guid, uint32_t* const age)
+{
+	const IMAGE_DOS_HEADER* const dosHeader
+		= (IMAGE_DOS_HEADER*)pe->data;
+	const IMAGE_NT_HEADERS* const ntHeaders
+		= (IMAGE_NT_HEADERS*)(pe->data + dosHeader->e_lfanew);
+	const IMAGE_FILE_HEADER* const fileHeader
+		= &ntHeaders->FileHeader;
+	const IMAGE_OPTIONAL_HEADER* const optHeader
+		= (IMAGE_OPTIONAL_HEADER*)(fileHeader + 1);
+	const IMAGE_DATA_DIRECTORY* dataDir;
+	const IMAGE_DEBUG_DIRECTORY* debugDir;
+	const uint8_t* pdbData;
+
+	if (!CheckPointer(pe, optHeader, sizeof(IMAGE_OPTIONAL_HEADER)))
+	{
+		fprintf(stderr, "Failed to read pe optional header.\n");
+		return false;
+	}
+
+	if (optHeader->NumberOfRvaAndSizes <= IMAGE_DIRECTORY_ENTRY_DEBUG)
+	{
+		fprintf(stderr, "Debug directory not present.\n");
+		return false;
+	}
+
+	dataDir = &optHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG];
+	debugDir = (IMAGE_DEBUG_DIRECTORY*)(pe->data + dataDir->VirtualAddress);
+	if (!CheckPointer(pe, debugDir, sizeof(IMAGE_DEBUG_DIRECTORY)))
+	{
+		fprintf(stderr, "Debug directory not within image.\n");
+		return false;
+	}
+
+	if (debugDir->Type != IMAGE_DEBUG_TYPE_CODEVIEW)
+	{
+		fprintf(stderr, "Debug directory is not codeview data.\n");
+		return false;
+	}
+
+	pdbData = (uint8_t*)(pe->data + debugDir->AddressOfRawData);
+	if (!CheckPointer(pe, pdbData, 25)) // Minimum size of PDB70 data
+	{
+		fprintf(stderr, "PDB information not within image.\n");
+		return false;
+	}
+
+	if (*(uint32_t*)pdbData == 0x4e423130)
+	{
+		// Check for NB10, which means this is PDB20 data
+		memset(guid, 0, sizeof(Guid));
+		guid->data1 = *(uint32_t*)(pdbData + 8);
+		*age = *(uint32_t*)(pdbData + 12);
+
+		// The image is potentially hostile, ensure the filename
+		// is in the PE
+		if (!CheckStringPointer(pe, (char*)(pdbData + 16)))
+		{
+			fprintf(stderr, "Pdb filename outside the image!\n");
+			return false;
+		}
+
+		// Ensure NULL termination
+		filename[filenameLen - 1] = '\0';
+		strncpy(filename, (char*)(pdbData + 16), filenameLen - 1);
+
+		return true;
+	}
+	else if (*(uint32_t*)pdbData == 0x52534453) // RSDS means PDB70
+	{
+		memcpy(guid->bytes, (pdbData + 4), sizeof(Guid));
+		*age = *(uint32_t*)(pdbData + 20);
+
+		// The image is potentially hostile, ensure the filename
+		// is in the PE
+		if (!CheckStringPointer(pe, (char*)(pdbData + 24)))
+		{
+			fprintf(stderr, "Pdb filename outside the image!\n");
+			return false;
+		}
+
+		// Ensure NULL termination
+		filename[filenameLen - 1] = '\0';
+		strncpy(filename, (char*)(pdbData + 24), filenameLen - 1);
+
+		return true;
+	}
+	else
+	{
+		// Unknown pdb info format
+		fprintf(stderr, "Unknownpdb info format %.8x\n",
+			*(uint32_t*)pdbData);
+		return false;
+	}
 }
 
 

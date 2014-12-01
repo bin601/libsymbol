@@ -38,17 +38,25 @@ http://ccimetadata.codeplex.com/ Microsoft Common Compiler Infrastructure Metada
 		#define PDBAPI __declspec(dllimport)
 	#endif /* LIBPDB_EXPORTS */
 
-	typedef int bool;
-	#define true 1
-	#define false 0
+	#if _MSC_VER < 1800
+		typedef int bool;
+		#define true 1
+		#define false 0
+	#else
+		#include <stdbool.h>
+	#endif /* _MSC_VER < 1800 */
 
 	typedef __int64 off_t;
 
-#else // GCC
+#else /* GCC */
 
 	#include <stdbool.h>
 
-	#define PDBAPI __attribute__ ((visibility("default")))
+	#ifdef LIBPDB_EXPORTS
+		#define PDBAPI __attribute__ ((visibility("default")))
+	#else
+		#define PDBAPI
+	#endif /* LIBPDB_EXPORTS */
 #endif /* _MSC_VER */
 
 #define _FILE_OFFSET_BITS 64

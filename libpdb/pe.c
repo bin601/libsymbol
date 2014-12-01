@@ -1,7 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 
@@ -15,6 +13,7 @@
 #include <unistd.h>
 #endif /* WIN32 */
 
+#include "pdb.h"
 #include "pe.h"
 
 // http://www.brokenthorn.com/Resources/OSDevPE.html

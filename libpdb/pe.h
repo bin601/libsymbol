@@ -14,10 +14,10 @@ typedef union Guid
 } Guid;
 
 typedef struct PeFile PeFile;
-PeFile* PeOpen(const char* const filename);
-void PeClose(PeFile* const peFile);
+PDBAPI PeFile* PeOpen(const char* const filename);
+PDBAPI void PeClose(PeFile* const peFile);
 
-bool PeGetPdbData(PeFile* const pe, char* const pdbFilename,
+PDBAPI bool PeGetPdbData(PeFile* const pe, char* const pdbFilename,
 	size_t pdbFilenameLen, Guid* const  pdbGuid, uint32_t* const pdbAge);
 
 #endif /* __PE_H__ */

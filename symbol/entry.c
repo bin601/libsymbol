@@ -23,9 +23,10 @@ THE SOFTWARE.
 #include <string.h>
 
 #include "pdb.h"
+#include "pe.h"
 #include "tpi.h"
 
-char* g_pdbFile = NULL; // The full path and file name of the pdb file we are operating on
+char* g_filename = NULL; // The full path and file name of the pdb file we are operating on
 bool g_dumpStream = false; // Do we want to dump a stream?
 uint16_t g_dumpStreamId = (uint16_t)-1; // The stream id to dump if dump is true.
 bool g_dumpType = false; // Do we want to dump a type?
@@ -57,7 +58,7 @@ static bool ParseCommandLine(int argc, char** argv)
 
 	if (argc == 2)
 	{
-		g_pdbFile = argv[1];
+		g_filename = argv[1];
 		return true;
 	}
 
@@ -79,7 +80,11 @@ static bool ParseCommandLine(int argc, char** argv)
 			else
 				g_type = argv[2];
 		}
-		g_pdbFile = argv[3];
+		else if (strcasecmp(argv[1], "--dump-pe-sig") == 0)
+		{
+			g_getSigFromPe = true;
+		}
+		g_filename = argv[3];
 
 		return true;
 	}
@@ -98,7 +103,38 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	pdb = PdbOpen(g_pdbFile);
+	if (g_getSigFromPe)
+	{
+		PeFile* const pe = PeOpen(g_filename);
+		char pdbFilename[512];
+		Guid pdbGuid;
+		uint32_t pdbAge;
+		uint64_t data4;
+
+		if (!pe)
+			return false;
+
+		if (!PeGetPdbData(pe, pdbFilename, sizeof(pdbFilename),
+			&pdbGuid, &pdbAge))
+		{
+			return false;
+		}
+
+		fprintf(stderr, "PE: %s\n", g_filename);
+		fprintf(stderr, "PDB: %s ", pdbFilename);
+
+		memcpy(&data4, pdbGuid.data4, 8);
+		fprintf(stderr, "GUID: %.8x-%.4hx-%.4hx-%.16llx ",
+			pdbGuid.data1, pdbGuid.data2, pdbGuid.data3,
+			(long long unsigned int)data4);
+		fprintf(stderr, "Age: %.8x\n", pdbAge);
+
+		PeClose(pe);
+
+		return 0;
+	}
+
+	pdb = PdbOpen(g_filename);
 
 	if (!pdb)
 	{

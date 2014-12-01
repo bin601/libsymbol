@@ -249,7 +249,7 @@ PeFile* PeOpen(const char* const filename)
 	}
 
 	dosHeader = (IMAGE_DOS_HEADER*)pe->data;
-	if (dosHeader->e_magic != 0x4d5a)
+	if (dosHeader->e_magic != 0x5a4d) // MZ
 	{
 		fprintf(stderr, "Not a PE file. MS DOS header magic doesn't match.\n");
 		PeClose(pe);
@@ -264,7 +264,7 @@ PeFile* PeOpen(const char* const filename)
 		return NULL;
 	}
 
-	if (ntHeaders->Signature != 0x50450000)
+	if (ntHeaders->Signature != 0x4550) // PE\0\0
 	{
 		fprintf(stderr, "PE signature does not match.\n");
 		PeClose(pe);

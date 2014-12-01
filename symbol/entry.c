@@ -84,8 +84,20 @@ static bool ParseCommandLine(int argc, char** argv)
 		{
 			g_getSigFromPe = true;
 		}
+		else
+		{
+			// No valid option
+			return false;
+		}
 		g_filename = argv[3];
 
+		return true;
+	}
+	else if (argc == 3)
+	{
+		if (strcasecmp(argv[1], "--dump-pe-sig") == 0)
+			g_getSigFromPe = true;
+		g_filename = argv[2];
 		return true;
 	}
 

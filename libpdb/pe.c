@@ -398,7 +398,7 @@ bool PeGetPdbData(PeFile* const pe, char* const filename,
 
 		return true;
 	}
-	else if (*(uint32_t*)pdbData == 0x52534453) // RSDS means PDB70
+	else if (*(uint32_t*)pdbData == 0x53445352) // RSDS means PDB70
 	{
 		memcpy(guid->bytes, (pdbData + 4), sizeof(Guid));
 		*age = *(uint32_t*)(pdbData + 20);
@@ -420,7 +420,7 @@ bool PeGetPdbData(PeFile* const pe, char* const filename,
 	else
 	{
 		// Unknown pdb info format
-		fprintf(stderr, "Unknownpdb info format %.8x\n",
+		fprintf(stderr, "Unknown pdb info format %.8x\n",
 			*(uint32_t*)pdbData);
 		return false;
 	}

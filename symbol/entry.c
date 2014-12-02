@@ -26,13 +26,13 @@ THE SOFTWARE.
 #include "pe.h"
 #include "tpi.h"
 
-char* g_filename = NULL; // The full path and file name of the pdb file we are operating on
+const char* g_filename = NULL; // The full path and file name of the pdb file we are operating on
 bool g_dumpStream = false; // Do we want to dump a stream?
 uint16_t g_dumpStreamId = (uint16_t)-1; // The stream id to dump if dump is true.
 bool g_dumpType = false; // Do we want to dump a type?
 bool g_dumpAllTypes = false;
 bool g_getSigFromPe = false;
-char* g_type = NULL;
+const char* g_type = NULL;
 
 
 #ifdef _MSC_VER
@@ -121,7 +121,6 @@ int main(int argc, char** argv)
 		char pdbFilename[512];
 		Guid pdbGuid;
 		uint32_t pdbAge;
-		uint64_t data4;
 
 		if (!pe)
 			return false;
@@ -135,10 +134,11 @@ int main(int argc, char** argv)
 		fprintf(stderr, "PE: %s\n", g_filename);
 		fprintf(stderr, "PDB: %s ", pdbFilename);
 
-		memcpy(&data4, pdbGuid.data4, 8);
-		fprintf(stderr, "GUID: %.8x-%.4hx-%.4hx-%.16llx ",
+		fprintf(stderr, "GUID: %.8x-%.4hx-%.4hx-%.2hhx%.2hhx%.2hhx%.2hhx%.2hhx%.2hhx%.2hhx%.2hhx ",
 			pdbGuid.data1, pdbGuid.data2, pdbGuid.data3,
-			(long long unsigned int)data4);
+			pdbGuid.data4[0], pdbGuid.data4[1], pdbGuid.data4[2],
+			pdbGuid.data4[3], pdbGuid.data4[4], pdbGuid.data4[5],
+			pdbGuid.data4[6], pdbGuid.data4[7]);
 		fprintf(stderr, "Age: %.8x\n", pdbAge);
 
 		PeClose(pe);

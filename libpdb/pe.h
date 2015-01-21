@@ -20,4 +20,7 @@ PDBAPI void PeClose(PeFile* const peFile);
 PDBAPI bool PeGetPdbData(PeFile* const pe, char* const pdbFilename,
 	size_t pdbFilenameLen, Guid* const  pdbGuid, uint32_t* const pdbAge);
 
+PDBAPI bool PeGetExportedSymbol(PeFile* const pe, const char* const name,
+	uint64_t loadAddr, uint64_t* const addr);
+
 #endif /* __PE_H__ */

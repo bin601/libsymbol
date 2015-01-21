@@ -145,6 +145,21 @@ typedef struct IMAGE_NT_HEADERS
   IMAGE_OPTIONAL_HEADER OptionalHeader;
 } IMAGE_NT_HEADERS;
 
+typedef struct IMAGE_EXPORT_DIRECTORY
+{
+	uint32_t Characteristics;
+	uint32_t TimeDateStamp;
+	uint16_t MajorVersion;
+	uint16_t MinorVersion;
+	uint32_t Name;
+	uint32_t Base;
+	uint32_t NumberOfFunctions;
+	uint32_t NumberOfNames;
+	uint32_t AddressOfFunctions;
+	uint32_t AddressOfNames;
+	uint32_t AddressOfNameOrdinals;
+} IMAGE_EXPORT_DIRECTORY;
+
 typedef enum IMAGE_DEBUG_TYPE
 {
 	IMAGE_DEBUG_TYPE_UNKNOWN = 0,
@@ -311,6 +326,7 @@ static __inline bool CheckStringPointer(const PeFile* const pe,
 	const char* const str)
 {
 	const char* c = str;
+	const char* end = (char*)(pe->data + pe->len);
 
 	// See if the first byte is even in the image.
 	if (!CheckPointer(pe, str, 1))
@@ -321,7 +337,7 @@ static __inline bool CheckStringPointer(const PeFile* const pe,
 	while ((*c) != '\0')
 	{
 		c++;
-		if (c >= (char*)(pe->data + pe->len))
+		if (c >= end)
 			return false;
 	}
 
@@ -426,4 +442,42 @@ bool PeGetPdbData(PeFile* const pe, char* const filename,
 	}
 }
 
+
+bool PeGetExportedSymbol(PeFile* const pe, const char* const name,
+	uint64_t loadAddr, uint64_t* const addr)
+{
+	const IMAGE_DOS_HEADER* const dosHeader
+		= (IMAGE_DOS_HEADER*)pe->data;
+	const IMAGE_NT_HEADERS* const ntHeaders
+		= (IMAGE_NT_HEADERS*)(pe->data + dosHeader->e_lfanew);
+	const IMAGE_FILE_HEADER* const fileHeader
+		= &ntHeaders->FileHeader;
+	const IMAGE_OPTIONAL_HEADER* const optHeader
+		= (IMAGE_OPTIONAL_HEADER*)(fileHeader + 1);
+	const IMAGE_DATA_DIRECTORY* dataDir;
+	const IMAGE_EXPORT_DIRECTORY* exportDir;
+
+	if (!CheckPointer(pe, optHeader, sizeof(IMAGE_OPTIONAL_HEADER)))
+	{
+		fprintf(stderr, "Failed to read pe optional header.\n");
+		return false;
+	}
+
+	if (optHeader->NumberOfRvaAndSizes < 1)
+	{
+		fprintf(stderr, "Export directory not present.\n");
+		return false;
+	}
+
+	dataDir = &optHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+	exportDir
+		= (IMAGE_EXPORT_DIRECTORY*)(pe->data + dataDir->VirtualAddress);
+	if (!CheckPointer(pe, exportDir, sizeof(IMAGE_EXPORT_DIRECTORY)))
+	{
+		fprintf(stderr, "Failed to read pe export directory.\n");
+		return false;
+	}
+
+	return false;
+}
 
